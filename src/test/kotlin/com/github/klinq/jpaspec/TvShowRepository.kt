@@ -13,6 +13,18 @@ interface TvShowRepository : CrudRepository<TvShow, Int>, JpaSpecificationExecut
 @Repository
 interface GenreRepository : CrudRepository<Genre, Int>, JpaSpecificationExecutor<Genre>
 
+@Repository
+interface ActorRepository : CrudRepository<Actor, Int>, JpaSpecificationExecutor<Actor>
+
+@Repository
+interface CastRepository : CrudRepository<Cast, Int>, JpaSpecificationExecutor<Cast>
+
+@Repository
+interface CompanyRepository : CrudRepository<Company, Int>, JpaSpecificationExecutor<Company>
+
+@Repository
+interface TestNameRepository : CrudRepository<TestName, Int>, JpaSpecificationExecutor<TestName>
+
 interface HasName {
     val name: String
 }
@@ -50,8 +62,56 @@ data class TvShow(
         val releaseDate: String? = null,
         @OneToMany(cascade = [CascadeType.ALL])
         val starRatings: Set<StarRating> = emptySet(),
+        @OneToMany(cascade = [CascadeType.ALL])
+        val actors: Set<Actor> = emptySet(),
+        @OneToMany(cascade = [CascadeType.ALL])
+        val casts: Set<Cast> = emptySet(),
         @Embedded
         val price: Price
+) : HasName
+
+@Entity
+data class Actor(
+        @Id
+        @GeneratedValue
+        val id: Int = 0,
+        override val name: String = "",
+        @OneToMany(cascade = [CascadeType.ALL])
+        var cast: Set<Cast> = emptySet(),
+        @ManyToOne
+        var company: Company? = null
+) : HasName
+
+@Entity
+data class Cast(
+        @Id
+        @GeneratedValue
+        val id: Int = 0,
+        @ManyToOne
+        val actor: Actor? = null,
+        @ManyToOne
+        val company: Company? = null
+)
+
+@Entity
+data class Company(
+        @Id
+        @GeneratedValue
+        val id: Int = 0,
+        @OneToOne
+        val name: TestName,
+        @OneToMany
+        var actors: Set<Actor> = emptySet(),
+        @OneToMany(cascade = [CascadeType.ALL])
+        var casts: Set<Cast> = emptySet()
+)
+
+@Entity
+data class TestName(
+        @Id
+        @GeneratedValue
+        val id: Int = 0,
+        override val name: String = ""
 ) : HasName
 
 @Entity

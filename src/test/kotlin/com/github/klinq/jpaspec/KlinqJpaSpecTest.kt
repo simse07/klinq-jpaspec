@@ -28,6 +28,18 @@ open class KlinqJpaSpecTest {
     @Autowired
     lateinit var genreRepo: GenreRepository
 
+    @Autowired
+    lateinit var actorRepository: ActorRepository
+
+    @Autowired
+    lateinit var castRepository: CastRepository
+
+    @Autowired
+    lateinit var companyRepository: CompanyRepository
+
+    @Autowired
+    lateinit var testNameRepository: TestNameRepository
+
     lateinit var hemlockGrove: TvShow
     lateinit var theWalkingDead: TvShow
     lateinit var betterCallSaul: TvShow
@@ -35,11 +47,49 @@ open class KlinqJpaSpecTest {
     lateinit var crimeDrama: Genre
     lateinit var horrorThriller: Genre
 
+    lateinit var john: Actor
+    lateinit var jim: Actor
+
+    lateinit var castJohn: Cast
+    lateinit var castJim: Cast
+
+    lateinit var companyA: Company
+    lateinit var companyB: Company
+
+    lateinit var testNameA: TestName
+    lateinit var testNameB: TestName
+
     @Before
     fun setup() {
         genreRepo.apply {
             crimeDrama = save(Genre(name = "Crime drama", starRatings = setOf(StarRating(stars = 1), StarRating(stars = 2))))
             horrorThriller = save(Genre(name = "Horror Thriller", starRatings = setOf(StarRating(stars = 3), StarRating(stars = 5))))
+        }
+
+        testNameRepository.apply {
+            testNameA = save(TestName(name = "A"))
+            testNameB = save(TestName(name = "B"))
+        }
+
+        companyRepository.apply {
+            companyA = save(Company(name = testNameA))
+            companyB = save(Company(name = testNameA))
+        }
+
+        actorRepository.apply {
+            john = save(Actor(name = "John", company = companyA).apply { companyA.actors.plus(this) })
+            jim = save(Actor(name = "Jim", company = companyB).apply { companyB.actors.plus(this) })
+        }
+
+        castRepository.apply {
+            castJohn = save(Cast(actor = john, company = companyA).apply {
+                companyA.casts.plus(this)
+                john.cast.plus(this)
+            })
+            castJim = save(Cast(actor = jim, company = companyB).apply {
+                companyB.casts.plus(this)
+                jim.cast.plus(this)
+            })
         }
 
         tvShowRepo.apply {
@@ -68,6 +118,8 @@ open class KlinqJpaSpecTest {
                             availableOnNetflix = false,
                             synopsis = "The trials and tribulations of criminal lawyer, Jimmy McGill, in the time leading up to establishing his strip-mall law office in Albuquerque, New Mexico.",
                             starRatings = setOf(StarRating(stars = 4), StarRating(stars = 2)),
+                            actors = setOf(john, jim),
+                            casts = setOf(castJohn, castJim),
                             price = Price(7.toBigDecimal())))
         }
     }
@@ -344,7 +396,11 @@ open class KlinqJpaSpecTest {
 
     @Test
     fun distinct() {
-        val page = tvShowRepo.findAll(TvShow::starRatings.toCollectionJoin().where(StarRating::stars, true).greaterThanOrEqualTo(1), PageRequest.of(0, 50))
-        assertThat(page.content).containsExactlyInAnyOrder(betterCallSaul, theWalkingDead)
+        val cast = TvShow::casts.toCollectionJoin().leftJoin(Cast::actor)
+        val actor = TvShow::actors.toCollectionJoin()
+        val list = listOf(cast, actor).map { it.join(Actor::company).join(Company::name).where(TestName::name, true).equal("A") }.let { or(it) }
+
+        val page = tvShowRepo.findAll(list, PageRequest.of(0, 50))
+        assertThat(page.content.size).isEqualTo(1)
     }
 }
